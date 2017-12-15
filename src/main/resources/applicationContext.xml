@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:jdbc="http://www.springframework.org/schema/jdbc"
+	xmlns:tx="http://www.springframework.org/schema/tx" xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/jdbc
+       http://www.springframework.org/schema/jdbc/spring-jdbc.xsd
+       http://www.springframework.org/schema/tx
+       http://www.springframework.org/schema/tx/spring-tx.xsd
+       http://www.springframework.org/schema/aop
+       http://www.springframework.org/schema/aop/spring-aop.xsd
+       http://www.springframework.org/schema/context
+       http://www.springframework.org/schema/context/spring-context.xsd">
+
+
+	<context:property-placeholder location="classpath:jdbc.properties" />
+	<context:component-scan base-package="com.dynamic.dao,com.dynamic.service" />
+
+	<bean id="parentDataSource" class="com.alibaba.druid.pool.DruidDataSource">
+		<property name="driverClassName" value="${jdbc.driverClass}" />
+		<!-- 连接池最大使用连接数 -->
+		<property name="maxActive" value="20" />
+		<!-- 初始化连接大小 -->
+		<property name="initialSize" value="1"/>
+		<!-- 获取连接最大等待时间 -->
+		<property name="maxWait" value="1"/>
+		<!-- 自动清除无用连接 -->
+		<property name="removeAbandoned" value="true" />
+		<!-- 清除无用连接的等待时间 -->
+		<property name="removeAbandonedTimeout" value="180"/>
+		<!-- 连接属性 -->
+		<property name="connectionProperties" value="clientEncoding=UTF-8"/>
+	</bean>
+	<bean id="masterDataSource" parent="parentDataSource">
+		<property name="url">
+			<value>${master.jdbc.jdbcUrl}</value>
+		</property>
+		<property name="username">
+			<value>${master.jdbc.user}</value>
+		</property>
+		<property name="password">
+			<value>${master.jdbc.password}</value>
+		</property>
+	</bean>
+	<bean id="slaveDataSource" parent="parentDataSource">
+		<property name="url">
+			<value>${slave.jdbc.jdbcUrl}</value>
+		</property>
+		<property name="username">
+			<value>${slave.jdbc.user}</value>
+		</property>
+		<property name="password">
+			<value>${slave.jdbc.password}</value>
+		</property>
+	</bean>
+
+	<!-- 用于动态选择主、从数据库的数据源实现 -->
+	<bean id="dataSource" class="com.dynamic.datasource.DynamicDataSource">
+		<property name="targetDataSources">
+			<map key-type="java.lang.String">
+				<entry key="master" value-ref="masterDataSource" />
+				<entry key="slave" value-ref="slaveDataSource" />
+			</map>
+		</property>
+		<property name="defaultTargetDataSource" ref="masterDataSource" />
+	</bean>
+
+	<bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+		<property name="dataSource" ref="dataSource" />
+		<property name="mapperLocations">
+			<array>
+				<value>classpath:mapper/*.xml</value>
+			</array>
+		</property>
+		<property name="typeAliasesPackage" value="com.dynamic.model" />
+		<property name="configLocation" value="classpath:mybatis-config.xml" />
+		<property name="plugins">
+            <array>
+                <bean class="com.github.pagehelper.PageHelper">
+                    <property name="properties">
+                        <value>
+                            dialect=mysql
+                            params=pageNum=page;pageSize=pagesize
+                        </value>
+                    </property>
+                </bean>
+            </array>
+        </property>
+	</bean>
+
+	<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer" >
+		<property name="basePackage" value="com.dynamic.dao" />
+		<property name="sqlSessionFactoryBeanName" value="sqlSessionFactory" />
+	</bean>
+
+	<!-- <bean id="sqlSession" class="org.mybatis.spring.SqlSessionTemplate" scope="prototype">
+		<constructor-arg index="0" ref="sqlSessionFactory" />
+	</bean> -->
+
+	<bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<property name="dataSource" ref="dataSource" />
+	</bean>
+
+	<tx:annotation-driven transaction-manager="transactionManager" proxy-target-class="true" order="2"/>
+
+	<!-- <aop:aspectj-autoproxy proxy-target-class="true" /> -->
+	
+	<tx:advice id="txAdvice" transaction-manager="transactionManager">
+        <tx:attributes>
+            <tx:method name="get*" read-only="true" propagation="SUPPORTS"/>
+            <tx:method name="find*" read-only="true" propagation="SUPPORTS" />
+            <tx:method name="load*" read-only="true" propagation="SUPPORTS" />
+            <tx:method name="query*" read-only="true" propagation="SUPPORTS" />
+            <tx:method name="add*" read-only="false" rollback-for="Exception"/>
+            <tx:method name="save*" read-only="false" rollback-for="Exception"/>
+            <tx:method name="insert*" read-only="false" rollback-for="Exception"/>
+            <tx:method name="update*" read-only="false" rollback-for="Exception"/>
+            <tx:method name="modify*" read-only="false" rollback-for="Exception"/>
+            <tx:method name="delete*" read-only="false" rollback-for="Exception"/>
+            <tx:method name="del*" read-only="false" rollback-for="Exception"/>
+        </tx:attributes>
+    </tx:advice>
+    
+    <!-- 事务切面 -->
+    <aop:config>
+    	<!-- 注意 expression 里的表达式，只有ServiceImpl后缀的方法才会有事务，其余方法没有事务，用以解决动态切换数据源失效的问题，slave数据源定义service层实现类时，不能以ServiceImpl结尾，才能正常进行数据源的切换-->
+    	<!-- 但是有update/delete数据的危险，因此slave数据源需要加入readonly事务 -->
+    	<aop:pointcut id="transactionPointCut" expression="execution(* com.dynamic.service.impl.*ServiceImpl.*(..))" />
+    	<aop:advisor pointcut-ref="transactionPointCut" advice-ref="txAdvice"/>
+    </aop:config>
+
+	<!-- 数据源切面-用于动态切换数据源 -->
+	<bean id="dataSourceAspect" class="com.dynamic.advice.DataSourceAspect" />	
+    <aop:config>
+        <!-- <aop:advisor pointcut-ref="dataSourcePointCut" advice-ref="txAdvice"/> -->
+    	<aop:aspect ref="dataSourceAspect" order="1">
+	        <aop:pointcut id="dataSourcePointCut" expression="execution(* com.dynamic.dao.*.*(..))" />
+	        <aop:before method="before" pointcut-ref="dataSourcePointCut" />
+    	</aop:aspect>
+    </aop:config>
+
+</beans>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dynamic.dao.UserInfoDao">
+	<resultMap id="userInfoMap" type="com.dynamic.model.UserInfo">
+		<id column="id" jdbcType="INTEGER" property="id" />
+		<result column="username" jdbcType="VARCHAR" property="username" />
+		<result column="password" jdbcType="VARCHAR" property="password" />
+	</resultMap>
+	<insert id="insertUser" parameterType="com.dynamic.model.UserInfo">
+		insert into user_info (username,password) values (#{username,jdbcType=VARCHAR},#{password,jdbcType=VARCHAR})
+	</insert>
+	
+	<delete id="deleteUser" parameterType="int">
+		delete from user_info where id = #{id}
+	</delete>
+	
+	<select id="selectUser" resultMap="userInfoMap" parameterType="int">
+		select * from user_info where id = #{id,jdbcType=INTEGER}		
+	</select>
+	
+	<select id="selectAll" resultMap="userInfoMap">
+		select * from user_info
+	</select>
+	
+</mapper>
