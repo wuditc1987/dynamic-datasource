@@ -180,30 +180,6 @@
 			<version>2.2.2</version>
 		</dependency>
 	</dependencies>
-	<repositories>
-		<repository>
-			<id>CN</id>
-			<name>OSChina Central</name>
-			<url>http://maven.oschina.net/content/groups/public/</url>
-			<releases>
-				<enabled>false</enabled>
-			</releases>
-			<snapshots>
-				<enabled>false</enabled>
-			</snapshots>
-		</repository>
-		<repository>
-			<id>KNET</id>
-			<name>Knet Central</name>
-			<url>http://nexus.yqxiu.cn/content/groups/public/</url>
-			<releases>
-				<enabled>true</enabled>
-			</releases>
-			<snapshots>
-				<enabled>true</enabled>
-			</snapshots>
-		</repository>
-	</repositories>
 	<build>
 		<resources>
 			<resource>

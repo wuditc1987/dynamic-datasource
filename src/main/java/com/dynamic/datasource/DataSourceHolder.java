@@ -2,7 +2,7 @@ package com.dynamic.datasource;
 
 public class DataSourceHolder {
 
-	private static final ThreadLocal<String> holder = new ThreadLocal<>();
+	private static final ThreadLocal<String> holder = new ThreadLocal<String>();
 	
 	private static final String DATAOURCE_MASTER = "master";
 	
