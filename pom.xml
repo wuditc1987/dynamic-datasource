@@ -7,7 +7,7 @@
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<spring.version>4.3.8.RELEASE</spring.version>
+		<spring.version>6.0.0</spring.version>
 		<!-- 依赖版本 -->
 		<mapper.version>3.1.0</mapper.version>
 		<pagehelper.version>3.7.4</pagehelper.version>
